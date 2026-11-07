@@ -1,0 +1,9 @@
+condition,1,2,3,avg
+rgb_blur,79.96,67.38,44.64,63.99
+rgb_low_light,73.87,35.64,19.44,42.98
+rgb_noise,83.13,79.73,72.09,78.32
+rgb_occlusion,76.97,71.37,62.64,70.33
+thermal_blur,82.87,82.86,82.68,82.8
+thermal_noise,82.68,82.28,82.37,82.44
+thermal_occlusion,82.51,82.27,81.85,82.21
+clean (reference),82.92,82.92,82.92,82.92

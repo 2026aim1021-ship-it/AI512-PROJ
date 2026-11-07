@@ -1,0 +1,11 @@
+,E1,E2,Δ (E2−E1)
+mIoU,86.12,82.92,-3.2
+mIoU_obj,82.76,78.77,-3.99
+mDice,92.37,90.37,-2.0
+mSensitivity,90.96,87.89,-3.07
+mSpecificity,97.91,97.39,-0.52
+IoU/Background,99.57,99.51,-0.06
+IoU/Fire-Extinguisher,80.43,76.72,-3.71
+IoU/Backpack,88.35,87.7,-0.65
+IoU/Hand-Drill,83.46,78.24,-5.22
+IoU/Survivor,78.78,72.43,-6.35

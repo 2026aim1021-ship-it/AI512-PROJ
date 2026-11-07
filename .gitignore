@@ -1,0 +1,21 @@
+# datasets, weights and checkpoints (large; never commit)
+*.zip
+*.pth
+*.pt
+*.ckpt
+data/
+datasets/
+pretrained/
+checkpoints/
+logs/
+cmx_work/
+RGBX_Semantic_Segmentation/
+
+# python / notebooks
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
