@@ -1,0 +1,29 @@
+{
+  "name": "E2v2_cmx_b2_ep100",
+  "repo": "/content/CMX_PST900_Workspace/RGBX_Semantic_Segmentation",
+  "toolkit_dir": "/content/CMX_PST900_Workspace",
+  "pretrained": "/content/CMX_PST900_Workspace/pretrained/mit_b2.pth",
+  "backbone": "mit_b2",
+  "pst_root": "/content/CMX_PST900_Workspace/datasets/PST900_RGBT_Dataset",
+  "split_json": "MyDrive/AIProj_CMX/runs/val_split.json",
+  "ckpt_dir": "MyDrive/AIProj_CMX/runs/E2v2_cmx_b2_ep100",
+  "val_mode": "holdout",
+  "epochs": 100,
+  "snapshot_every": 10,
+  "warmup_epochs": 10,
+  "batch_size": 4,
+  "crop": [
+    480,
+    640
+  ],
+  "val_size": [
+    480,
+    640
+  ],
+  "lr": 6e-05,
+  "weight_decay": 0.01,
+  "amp": true,
+  "num_workers": 2,
+  "seed": 0,
+  "corruption_p": 0.0
+}

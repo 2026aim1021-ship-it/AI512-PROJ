@@ -209,13 +209,16 @@ class PST900Dataset(Dataset):
                          interpolation=cv2.INTER_NEAREST).astype(np.int64)
         ch, cw = self.crop_size
         ph, pw = max(0, ch - h), max(0, cw - w)
+        valid = np.ones((h, w), np.uint8)
         if ph or pw:
             rgb = np.pad(rgb, ((0, ph), (0, pw), (0, 0)))
             th = np.pad(th, ((0, ph), (0, pw)))
             lab = np.pad(lab, ((0, ph), (0, pw)), constant_values=IGNORE_INDEX)  # padded = ignored
+            valid = np.pad(valid, ((0, ph), (0, pw)))
         H, W = lab.shape
         y, x = random.randint(0, H - ch), random.randint(0, W - cw)
-        return rgb[y:y + ch, x:x + cw], th[y:y + ch, x:x + cw], lab[y:y + ch, x:x + cw]
+        self._valid = valid[y:y + ch, x:x + cw]      # padded pixels are set to 0 AFTER normalisation (= mean grey),
+        return rgb[y:y + ch, x:x + cw], th[y:y + ch, x:x + cw], lab[y:y + ch, x:x + cw]   # as in the official CMX loader
 
     def __getitem__(self, idx):
         rgb, th, lab, name = self.load_raw(idx)
@@ -229,14 +232,34 @@ class PST900Dataset(Dataset):
 
         if self.is_training:
             rgb, th, lab = self._train_aug(rgb, th, lab)
+        return self._to_tensors(rgb, th, lab, name, self._valid if self.is_training else None)
 
+    def _to_tensors(self, rgb, th, lab, name, valid=None):
         if self.channel_order == "BGR":
             rgb = rgb[..., ::-1]
         th3 = np.stack([th] * 3, axis=-1)
-        rgb_t = torch.from_numpy(np.ascontiguousarray(_normalize(rgb).transpose(2, 0, 1))).float()
-        th_t = torch.from_numpy(np.ascontiguousarray(_normalize(th3).transpose(2, 0, 1))).float()
+        rgb_n, th_n = _normalize(rgb), _normalize(th3)
+        if valid is not None:                       # padding = 0 in normalised space (official CMX behaviour)
+            rgb_n = rgb_n * valid[..., None]
+            th_n = th_n * valid[..., None]
+        rgb_t = torch.from_numpy(np.ascontiguousarray(rgb_n.transpose(2, 0, 1))).float()
+        th_t = torch.from_numpy(np.ascontiguousarray(th_n.transpose(2, 0, 1))).float()
         return {"rgb": rgb_t, "thermal": th_t,
                 "label": torch.from_numpy(np.ascontiguousarray(lab)).long(), "name": name}
+
+
+class PST900PairDataset(PST900Dataset):
+    """E4: the same crop twice, once clean and once with one modality corrupted (identical geometry)."""
+
+    def __getitem__(self, idx):
+        rgb, th, lab, name = self.load_raw(idx)
+        rgb_c, th_c, _ = random_training_corruption(rgb, th, np.random.default_rng(), 1.0)
+        state = random.getstate()
+        a = self._to_tensors(*self._train_aug(rgb, th, lab), name, self._valid)
+        random.setstate(state)                      # identical flip / scale / crop for the corrupted view
+        b = self._to_tensors(*self._train_aug(rgb_c, th_c, lab), name, self._valid)
+        return {"rgb": a["rgb"], "thermal": a["thermal"], "label": a["label"],
+                "rgb_c": b["rgb"], "thermal_c": b["thermal"], "name": name}
 
 
 def inspect_dataset(root_dir, split="train", n=50):
