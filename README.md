@@ -13,9 +13,9 @@ CMRF is treated as a **research hypothesis**. Its effect must be shown through a
 | E1 | Original CMX baseline | ✅ done (100 epochs) |
 | E2 | CMX + cross-modal feature prediction + residual gating (CMRF, stage 3) | ✅ first run done, see findings |
 | E2-v2 | E2 with the bug fixes (resumable notebook, held-out validation split) | ✅ done, see findings |
-| E3 | E2 + modality-specific corruption during training | queued |
+| E3 | E2 + modality-specific corruption during training | ✅ done, see findings |
 | E4 | E3 + clean-to-corrupted prediction consistency | queued |
-| Control | E1 + the same corruption training, without CMRF | queued |
+| Control | E1 + the same corruption training, without CMRF | running next |
 | E1 / E2-v2 re-runs | same as above on the corrected pipeline, for like-for-like comparison | queued |
 
 ## Setup
@@ -27,15 +27,16 @@ CMRF is treated as a **research hypothesis**. Its effect must be shown through a
 
 ## Results so far
 
-| | E1 (CMX) | E2 (CMX + CMRF) | E2-v2 (fixed CMRF) |
-|---|---|---|---|
-| Clean mIoU, 5 classes | **86.12** | 82.92 | 85.34 |
-| Clean mIoU, 4 objects | **82.76** | 78.77 | 81.78 |
-| Survivor IoU | **78.78** | 72.43 | 72.46 |
-| Average under RGB degradation | **67.42** | 63.90 | 60.40 |
-| Average under thermal degradation | **85.53** | 82.49 | 83.39 |
-| RGB low-light, severity 3 (object mIoU) | 19.57 (0.17) | 19.44 (0.00) | 19.44 (0.00) |
-| Parameters / GFLOPs | 66.56 M / 78.27 | 67.03 M / 78.83 (+0.7%) | 67.03 M / 78.83 |
+| | E1 (CMX) | E2 (CMX + CMRF) | E2-v2 (fixed CMRF) | E3 (CMRF + corruption training) |
+|---|---|---|---|---|
+| Clean mIoU, 5 classes | **86.12** | 82.92 | 85.34 | 85.45 |
+| Clean mIoU, 4 objects | **82.76** | 78.77 | 81.78 | 81.92 |
+| Survivor IoU | **78.78** | 72.43 | 72.46 | 77.50 |
+| Average under RGB degradation | 67.42 | 63.90 | 60.40 | **75.46** |
+| Average under thermal degradation | **85.53** | 82.49 | 83.39 | 84.73 |
+| RGB low-light, severity 3 (object mIoU) | 19.57 (0.17) | 19.44 (0.00) | 19.44 (0.00) | **44.66 (31.21)** |
+| Thermal only (RGB removed), object mIoU | – | – | 0.00 | **22.82** |
+| Parameters / GFLOPs | 66.56 M / 78.27 | 67.03 M / 78.83 (+0.7%) | 67.03 M / 78.83 | 67.03 M / 78.83 |
 
 E1 and E2 used the official `train.py` on all 597 training images. E2-v2 used our resumable engine with a held-out validation split (491 train / 106 val, by recording) and best-validation-loss model selection, so it is not yet a like-for-like comparison (see below).
 
@@ -56,7 +57,9 @@ E1 and E2 used the official `train.py` on all 597 training images. E2-v2 used ou
 - The gate is still constant at 0.50: with clean-only training nothing rewards using thermal. Thermal-only input still detects no objects.
 - New failure under RGB occlusion (51.4 vs 72.9 for E1): black patches are predicted as Backpack/Hand-Drill. Likely cause: our training loader padded crops with black pixels (ignored in the loss), while the official loader pads with the normalised mean (grey). Fixed in the queue notebook; to be confirmed by the E1 re-run on the same pipeline.
 
-**Next (one notebook, run in sequence):** E1 re-run, E3, Control, E2-v2 re-run and E4, all with the corrected loader, the same validation split and the same training engine.
+**E3 finding.** Training with one modality corrupted (p = 0.5), plus the loader fix, raises the average under RGB degradation from 67.4 (E1) to 75.5 at a cost of 0.7 clean mIoU. Under severe RGB low light the model now finds objects (31.2 vs 0.2), and with RGB removed it still segments objects from thermal (22.8 vs 0). RGB occlusion recovered to 77.0. However, the CMRF gate is still constant (0.50, spatial std 0.006), so the gain cannot yet be attributed to CMRF; the Control run (same training without CMRF) decides this.
+
+**Previously planned queue:** E1 re-run, E3, Control, E2-v2 re-run and E4, all with the corrected loader, the same validation split and the same training engine.
 
 ## Repository layout
 
@@ -71,6 +74,8 @@ notebooks/
   E1_cmx_baseline_lightning.ipynb   E1 on Lightning AI
   E2_cmx_cmrf_colab.ipynb           E2 on Google Colab (E1 + CMRF; E1-vs-E2 tables, modality drop, gate maps)
   E2v2_cmx_cmrf_colab.ipynb         E2-v2 (also runs E1 / E3 / Control): stop and resume any time, best model by validation loss
+  E3_cmrf_corruption_colab.ipynb    E3 (CMRF + corruption training), standalone
+  Control_cmx_corruption_colab.ipynb   Control (CMX + corruption training, no CMRF), standalone
   CMRF_queue_E1_E3_control_E2v2_E4_colab.ipynb   runs E1, E3, Control, E2-v2 and E4 back to back (corrected loader),
                                     evaluates each and builds the comparison tables; resumable at any point
   extras/                           validation-based selection, minimal local-GPU version, fast MiT-B0 variant
@@ -78,6 +83,7 @@ results/
   E1/   benchmark, per-class and robustness CSVs, qualitative figure, training log, executed notebook
   E2/   same, plus E1-vs-E2 tables, modality-drop test, CMRF residual/gate maps
   E2v2/ E2-v2 benchmark, curves, gate maps, training log, validation split, executed notebook
+  E3/   E3 benchmark, robustness tables, gate maps, training log, summary, executed notebook
 docs/
   E2_CMRF_rationale.pdf   what changed from E1 and why; evidence chain; design choices
   figures/                diagrams used in the rationale document
